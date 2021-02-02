@@ -3,7 +3,7 @@
 from sys import path
 
 
-path.append('/usr/lib/bubblejail/python_packages')
+path.append('_LIB_PREFIX/bubblejail/python_packages')
 
 if __name__ == "__main__":
     from bubblejail.bubblejail_helper import bubblejail_helper_main
