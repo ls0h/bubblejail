@@ -275,6 +275,22 @@ class BubblejailInstance:
 
         async with init:
             bwrap_args = ['/usr/bin/bwrap']
+
+            if not args_to_run:
+                exec_path: str = init.executable_args[0]
+                args_to_run = list(self.rewrite_arguments(init.executable_args))
+            else:
+                exec_path: str = args_to_run[0]
+                args_to_run = list(self.rewrite_arguments(args_to_run))
+            # Read only bind the executable file if it is not in /bin, /sbin, etc...
+            if not (exec_path.startswith('/bin') or exec_path.startswith('/sbin')
+                    or exec_path.startswith('/usr/bin/') or exec_path.startswith('/usr/sbin/')
+                    or exec_path.startswith('/usr/local/bin/') or exec_path.startswith('/usr/local/sbin/')
+                    or exec_path.startswith('/opt')):
+                exec_filename = exec_path.split('/')[-1]
+                init.bwrap_options_args.extend(('--ro-bind', exec_path, f'/tmp/{exec_filename}'))
+                args_to_run[0] = f'/tmp/{exec_filename}'
+
             # Pass option args file descriptor
             bwrap_args.append('--args')
             bwrap_args.append(str(init.get_args_file_descriptor()))
@@ -291,10 +307,7 @@ class BubblejailInstance:
             if debug_shell:
                 bwrap_args.append('--shell')
 
-            if not args_to_run:
-                bwrap_args.extend(init.executable_args)
-            else:
-                bwrap_args.extend(self.rewrite_arguments(args_to_run))
+            bwrap_args.extend(args_to_run)
 
             if dry_run:
                 print('Bwrap options: ')

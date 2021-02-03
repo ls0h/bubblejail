@@ -327,6 +327,10 @@ class BubblejailDefaults(BubblejailService):
     def __iter__(self) -> ServiceGeneratorType:
         # Defaults can't be disabled
 
+        # FUSE support for AppImage and other mounts inside sandbox
+        yield DevBind('/dev/fuse')
+        yield Symlink('/proc/self/mounts', '/etc/mtab')
+
         # Distro packaged libraries and binaries
         yield ReadOnlyBind('/usr')
         yield ReadOnlyBind('/opt')
