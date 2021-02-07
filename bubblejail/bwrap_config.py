@@ -96,6 +96,33 @@ class DevBind(Bind):
     arg_word = '--dev-bind'
 
 
+@dataclass
+class CapabilityAdd(BwrapConfigBase):
+    arg_word = '--cap-add'
+    capability: str
+
+    def to_args(self) -> Tuple[str, str]:
+        return self.arg_word, self.capability
+
+
+@dataclass
+class UserId(BwrapConfigBase):
+    arg_word = '--uid'
+    uid: int
+
+    def to_args(self) -> Tuple[str, str]:
+        return self.arg_word, str(self.uid)
+
+
+@dataclass
+class GroupId(BwrapConfigBase):
+    arg_word = '--gid'
+    gid: int
+
+    def to_args(self) -> Tuple[str, str]:
+        return self.arg_word, str(self.gid)
+
+
 class DbusCommon:
     arg_word: str = 'ERROR'
 

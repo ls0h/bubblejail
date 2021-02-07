@@ -28,7 +28,7 @@ from .bwrap_config import (Bind, BwrapConfigBase, DbusCommon, DbusSessionOwn,
                            DbusSessionTalkTo, DevBind, DirCreate,
                            EnvrimentalVar, FileTransfer, LaunchArguments,
                            ReadOnlyBind, SeccompDirective, SeccompSyscallErrno,
-                           ShareNetwork, Symlink)
+                           ShareNetwork, Symlink, CapabilityAdd, UserId, GroupId)
 
 # region Service Typing
 
@@ -458,6 +458,45 @@ class CommonSettings(BubblejailService):
     description = "Settings that don't fit any particular category"
 
 
+class Capabilities(BubblejailService):
+    def __init__(self, caps_list: List[str] = EMPTY_LIST):
+        super().__init__()
+        self.caps_list = OptionStrList(
+            str_list=caps_list,
+            name='caps_list',
+            pretty_name='List of capabilities',
+            description='Add capability',
+        )
+        self.add_option(self.caps_list)
+
+    def __iter__(self) -> ServiceGeneratorType:
+        if not self.enabled:
+            return
+
+        if self.caps_list is not None:
+            for cap in self.caps_list.get_value():
+                yield CapabilityAdd(cap)
+
+    name = 'sandbox_caps'
+    pretty_name = 'Sandbox capabilities'
+    description = 'Add capabilities to sandbox processes'
+
+
+class Superuser(BubblejailService):
+    def __iter__(self) -> ServiceGeneratorType:
+        if not self.enabled:
+            yield UserId(1000)
+            yield GroupId(1000)
+            return
+
+        yield UserId(0)
+        yield GroupId(0)
+
+    name = 'superuser'
+    pretty_name = 'Root permissions'
+    description = 'Give superuser permissions to processes inside the sandbox. User will receive UID/GID 1000 if disabled'
+
+
 class X11(BubblejailService):
     def __iter__(self) -> ServiceGeneratorType:
         if not self.enabled:
@@ -791,7 +830,7 @@ class GnomeToolkit(BubblejailService):
 
 
 SERVICES_CLASSES: Tuple[Type[BubblejailService], ...] = (
-    CommonSettings, X11, Wayland,
+    CommonSettings, Superuser, Capabilities, X11, Wayland,
     Network, PulseAudio, HomeShare, DirectRendering,
     Systray, Joystick, RootShare, OpenJDK, Notifications,
     GnomeToolkit,
@@ -842,5 +881,8 @@ class ServiceContainer:
         if iter_default:
             yield self.default_service
         for service in self.services:
-            if service.enabled or iter_disabled:
-                yield service
+            yield service
+            # FIXME: Is it really needed to check service.enabled here?
+            #  Looks like most of services does nothing if service.enabled set to None.
+            # if service.enabled or iter_disabled:
+            #     yield service
