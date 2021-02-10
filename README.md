@@ -55,6 +55,12 @@ If you are not using Arch Linux you can try to manually install with meson
 
 If you want to uninstall run `ninja uninstall` from build directory.
 
+## Screenshots
+
+Configuration utility
+
+![bubblejailGUI](https://user-images.githubusercontent.com/8576552/107064385-58c50780-67d3-11eb-9399-45e3f565acd3.png)
+
 ## Quick start
 
 1. Install bubblejail from [AUR git](https://aur.archlinux.org/packages/bubblejail-git/) or [AUR stable](https://aur.archlinux.org/packages/bubblejail/)
@@ -68,100 +74,9 @@ If you want to uninstall run `ninja uninstall` from build directory.
 
 ## Command-line utility documentation
 
-Command line program `bubblejail` has 5 subcommands: `create`, `run`, `list`, `edit`, and `auto-create`.
+See man page:
 
-### bubblejail create
-
-Creates a new instance.
-
-Optional arguments:
-
-* __--profile__ Specify the profile that the instance will use. For available profiles, look at the **Available profiles** section. If omitted an empty profile will be used and the user will have to define the configuration manually.
-* __--no-desktop-entry__ Do not create a desktop entry.
-
-Required arguments:
-
-* name that the new instance will use
-
-Example:
-
-```
-bubblejail create --profile=firefox FirefoxSandbox
-```
-
-### bubblejail run
-
-Runs the specified instance, optionally passing arguments to the instance.
-
-Required arguments:
-
-* instance name
-
-Optional arguments:
-
-* instance arguments
-* __--debug-shell__ Opens a shell inside the sandbox instead of running the command.
-* __--dry-run__ Prints the bwrap arguments and exits.
-* __--debug-log-dbus__ Enables dbus proxy log.
-
-Example:
-
-Running with default arguments:
-```
-bubblejail run myfirefox
-```
-
-Passing arguments:
-```
-bubblejail run myfirefox firefox google.com
-```
-
-### bubblejail list
-
-Lists profiles or instances.
-
-Required arguments:
-
-* type List either `instances`, `profiles` or `services`
-
-Example:
-
-```
-bubblejail list instances
-```
-
-### bubblejail edit
-
-Opens the configuration file in the EDITOR. After exiting the editor, the file is validated and only written if validation is successful.
-
-Example:
-
-```
-bubblejail edit myfirefox
-```
-
-## Editing services.toml
-
-Instance configuration is written in the [TOML](https://github.com/toml-lang/toml) format.
-
-**services.toml** file is located at `$XDG_DATA_HOME/bubblejail/instances/{name}/services.toml`.
-
-The `edit` command can be used to open the config file in your EDITOR and validate after editing.
-
-Example config:
-
-```
-[common]
-executable_name = ["/usr/bin/firefox",] # This setting is optional.
-
-[wayland]
-[network]
-[pulse_audio]
-[direct_rendering]
-
-[home_share]
-home_paths = [ "Downloads",]
-```
+[man 1 bubblejail](https://github.com/igo95862/bubblejail/blob/master/docs/man/bubblejail.rst)
 
 ### Available services
 
