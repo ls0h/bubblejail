@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from sys import path
-from typing import Generator, Optional, Union
+from typing import Generator, Optional, Union, Type, List
 
 from bubblejail.bubblejail_directories import BubblejailDirectories
-from bubblejail.services import BubblejailService
+from bubblejail.services import BubblejailService, ServiceOptionTypes, ServiceOption, OptionBool, OptionStr, OptionSpaceSeparatedStr, \
+    OptionStrList
 
 path.append('/usr/local/lib/x86_64-linux-gnu/bubblejail/python_packages')
 from abc import ABC, abstractmethod
@@ -123,20 +124,167 @@ class InstanceListWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
             self._app.switch_to_edit(selected_row.instance_name)
 
 
+class OptionWidgetBase:
+    def __init__(self, option: ServiceOption):
+        super().__init__()
+        self._option = option
+
+    @abstractmethod
+    def save(self) -> None: ...
+
+    @abstractmethod
+    def get_sizegroup_subwidget(self) -> Optional[Gtk.Widget]: ...
+
+
+class BoolOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
+    _glade_ui_file = GLADE_UI_FILE
+    _glade_ui_root = 'bool_option_widget'
+
+    _gui_bool_option_widget: Gtk.HBox
+    _gui_bool_option_label: Gtk.Label
+    _gui_bool_option_switch: Gtk.Switch
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add(self._gui_bool_option_widget)
+        self._gui_bool_option_label.set_text(self._option.pretty_name)
+        self._gui_bool_option_label.set_tooltip_text(self._option.description)
+        self._gui_bool_option_switch.set_active(bool(self._option.get_value()))
+        self._gui_bool_option_switch.set_tooltip_text(self._option.description)
+
+    def save(self) -> None:
+        raise NotImplementedError
+
+    def get_sizegroup_subwidget(self) -> Optional[Gtk.Widget]:
+        return self._gui_bool_option_label
+
+
+class StringOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
+    _glade_ui_file = GLADE_UI_FILE
+    _glade_ui_root = 'string_option_widget'
+
+    _gui_string_option_widget: Gtk.HBox
+    _gui_string_option_label: Gtk.Label
+    _gui_string_option_entry: Gtk.Entry
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add(self._gui_string_option_widget)
+        self._gui_string_option_label.set_text(self._option.pretty_name)
+        self._gui_string_option_label.set_tooltip_text(self._option.description)
+        data = self._option.get_value()
+        if isinstance(data, List):
+            data = '\t'.join(data)
+        self._gui_string_option_entry.set_text(data)
+        self._gui_string_option_entry.set_tooltip_text(self._option.description)
+
+    def save(self) -> None:
+        raise NotImplementedError
+
+    def get_sizegroup_subwidget(self) -> Optional[Gtk.Widget]:
+        return self._gui_string_option_label
+
+
+class StrListItemWidget(GtkGladeUI, Gtk.Bin):
+    _glade_ui_file = GLADE_UI_FILE
+    _glade_ui_root = 'strlist_item_widget'
+
+    _gui_strlist_item_widget: Gtk.HBox
+    _gui_strlist_item_entry: Gtk.Entry
+
+    def __init__(self, strlist_widget: StrListOptionWidget, string: str):
+        super().__init__()
+        self.add(self._gui_strlist_item_widget)
+        self._gui_strlist_item_entry.set_text(string)
+
+
+class StrListOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
+    _glade_ui_file = GLADE_UI_FILE
+    _glade_ui_root = 'strlist_option_widget'
+
+    _gui_strlist_option_widget: Gtk.VBox
+    _gui_strlist_option_label: Gtk.Label
+    _gui_strlist_option_strings: Gtk.VBox
+    _gui_strlist_option_add_button: Gtk.Button
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add(self._gui_strlist_option_widget)
+        self._gui_strlist_option_label.set_text(self._option.pretty_name)
+        self._gui_strlist_option_label.set_tooltip_text(self._option.description)
+        self._gui_strlist_option_add_button.set_tooltip_text(self._option.description)
+        for string in self._option.get_value():
+            self._gui_strlist_option_strings.add(StrListItemWidget(self, string))
+
+
+    def save(self) -> None:
+        raise NotImplementedError
+
+    def get_sizegroup_subwidget(self) -> Optional[Gtk.Widget]:
+        return None
+
+    def on_strlist_option_add_button_clicked(self, button: Gtk.Button):
+        print('new item')
+
+
 class ServiceWidget(GtkGladeUI, Gtk.Bin):
     _glade_ui_file = GLADE_UI_FILE
     _glade_ui_root = 'service_widget'
 
     _gui_service_widget: Gtk.VBox
     _gui_service_title: Gtk.Label
+    _gui_rollup_button_image: Gtk.Image
+    _gui_add_del_button_image: Gtk.Image
     _gui_service_description: Gtk.Label
+    _gui_service_content: Gtk.VBox
+    _gui_service_params_list: Gtk.VBox
 
-    def __init__(self, service: BubblejailService):
+    def __init__(self, edit_window: InstanceEditWindow, service: BubblejailService):
         super().__init__()
-        self._service = service
+        self._size_group = Gtk.SizeGroup()
+        self._size_group.set_mode(Gtk.SizeGroupMode.HORIZONTAL)
+        self._rolled_up = False
+        self._edit_window = edit_window
+        self.service = service
         self._gui_service_title.set_text(service.pretty_name)
         self._gui_service_description.set_text(service.description)
+        self._set_enabled_or_available_state()
         self.add(self._gui_service_widget)
+        for option in service.iter_options():
+            # print(option)
+            option_widget_class: Type[Union[OptionWidgetBase, Gtk.Container]]
+            if isinstance(option, OptionBool):
+                option_widget_class = BoolOptionWidget
+            elif isinstance(option, (OptionStr, OptionSpaceSeparatedStr)):
+                option_widget_class = StringOptionWidget
+            elif isinstance(option, OptionStrList):
+                option_widget_class = StrListOptionWidget
+            else:
+                continue
+            option_widget = option_widget_class(option=option)
+            self._gui_service_params_list.add(option_widget)
+            if subwidget := option_widget.get_sizegroup_subwidget():
+                self._size_group.add_widget(subwidget)
+
+    def _set_enabled_or_available_state(self):
+        # TODO: Find icons like stock gtk-delete, gtk-add
+        #  DeprecationWarning: Gtk.Image.set_from_stock is deprecated
+        icons = {True: 'gtk-delete', False: 'gtk-add'}
+        self._gui_add_del_button_image.set_from_stock(icons[self.service.enabled], Gtk.IconSize.BUTTON)
+        self._gui_service_params_list.set_sensitive(self.service.enabled)
+
+    def on_add_del_button_clicked(self, button: Gtk.Button) -> None:
+        self.service.enabled = not self.service.enabled
+        self._edit_window.reparent_service_widget(self)
+        self._set_enabled_or_available_state()
+
+    def on_rollup_button_clicked(self, button: Gtk.Button) -> None:
+        # TODO: Find icons like stock gtk-go-down, 'gtk-go-up
+        #  DeprecationWarning: Gtk.Image.set_from_stock is deprecated
+        self._rolled_up = not self._rolled_up
+        icons = {True: 'gtk-go-down', False: 'gtk-go-up'}
+        self._gui_service_content.set_visible(not self._rolled_up)
+        self._gui_rollup_button_image.set_from_stock(icons[self._rolled_up], Gtk.IconSize.BUTTON)
 
 
 class InstanceEditWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
@@ -160,9 +308,9 @@ class InstanceEditWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
         instance_config = BubblejailDirectories.instance_get(instance_name)._read_config()
         for service in instance_config.iter_services(iter_disabled=True, iter_default=False):
             if service.enabled:
-                self._gui_enabled_services_vbox.add(ServiceWidget(service))
+                self._gui_enabled_services_vbox.add(ServiceWidget(edit_window=self, service=service))
             else:
-                self._gui_available_services_vbox.add(ServiceWidget(service))
+                self._gui_available_services_vbox.add(ServiceWidget(edit_window=self, service=service))
 
     def get_left_buttons(self) -> Optional[Gtk.Container]:
         return self._gui_ie_left_button_group
@@ -179,6 +327,16 @@ class InstanceEditWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
         else:
             # FIXME: Add dialog box!
             print('Add dialog box!')
+
+    def reparent_service_widget(self, service_widget: ServiceWidget):
+        if service_widget in self._gui_enabled_services_vbox.get_children():
+            self._gui_enabled_services_vbox.remove(service_widget)
+        if service_widget in self._gui_available_services_vbox.get_children():
+            self._gui_available_services_vbox.remove(service_widget)
+        if service_widget.service.enabled:
+            self._gui_enabled_services_vbox.add(service_widget)
+        else:
+            self._gui_available_services_vbox.add(service_widget)
 
 
 class BubblejailConfigApp(GtkGladeUI):
