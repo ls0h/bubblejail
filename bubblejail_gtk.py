@@ -14,7 +14,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
-GLADE_UI_FILE = './data/gtk/ui.glade'
+GLADE_UI_DIR = './data/gtk/'
 
 
 class GladeBuilder:
@@ -65,7 +65,7 @@ class InstanceListItem(Gtk.ListBoxRow):
 
 
 class InstanceListWindow(MainWindowInterface, GladeWidget):
-    _glade_file = GLADE_UI_FILE
+    _glade_file = f'{GLADE_UI_DIR}instance_list_ui.glade'
     _glade_root_id = 'instance_list_window'
 
     _gui_delete_instance_button: Gtk.Button
@@ -142,7 +142,7 @@ class OptionWidgetBase:
 
 
 class BoolOptionWidget(OptionWidgetBase, GladeWidget):
-    _glade_file = GLADE_UI_FILE
+    _glade_file = f'{GLADE_UI_DIR}instance_edit_ui.glade'
     _glade_root_id = 'bool_option_widget'
 
     _gui_bool_option_label: Gtk.Label
@@ -163,7 +163,7 @@ class BoolOptionWidget(OptionWidgetBase, GladeWidget):
 
 
 class StringOptionWidget(OptionWidgetBase, GladeWidget):
-    _glade_file = GLADE_UI_FILE
+    _glade_file = f'{GLADE_UI_DIR}instance_edit_ui.glade'
     _glade_root_id = 'string_option_widget'
 
     _gui_string_option_label: Gtk.Label
@@ -187,7 +187,7 @@ class StringOptionWidget(OptionWidgetBase, GladeWidget):
 
 
 class StrListItemWidget(GladeWidget):
-    _glade_file = GLADE_UI_FILE
+    _glade_file = f'{GLADE_UI_DIR}instance_edit_ui.glade'
     _glade_root_id = 'strlist_item_widget'
 
     _gui_strlist_item_entry: Gtk.Entry
@@ -205,7 +205,7 @@ class StrListItemWidget(GladeWidget):
 
 
 class StrListOptionWidget(OptionWidgetBase, GladeWidget):
-    _glade_file = GLADE_UI_FILE
+    _glade_file = f'{GLADE_UI_DIR}instance_edit_ui.glade'
     _glade_root_id = 'strlist_option_widget'
 
     _gui_strlist_option_label: Gtk.Label
@@ -249,7 +249,7 @@ class StrListOptionWidget(OptionWidgetBase, GladeWidget):
 
 
 class ServiceWidget(GladeWidget):
-    _glade_file = GLADE_UI_FILE
+    _glade_file = f'{GLADE_UI_DIR}instance_edit_ui.glade'
     _glade_root_id = 'service_widget'
 
     _gui_service_title: Gtk.Label
@@ -312,7 +312,7 @@ class ServiceWidget(GladeWidget):
 
 
 class InstanceEditWindow(MainWindowInterface, GladeWidget):
-    _glade_file = GLADE_UI_FILE
+    _glade_file = f'{GLADE_UI_DIR}instance_edit_ui.glade'
     _glade_root_id = 'instance_edit_window'
 
     _gui_ie_left_button_group: Gtk.Hbox
@@ -370,7 +370,7 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
 
 
 class BubblejailConfigApp(GladeBuilder):
-    _glade_file = GLADE_UI_FILE
+    _glade_file = f'{GLADE_UI_DIR}main_window.glade'
     _glade_root_id = 'main_window'
 
     _gui_main_window: Gtk.Window
