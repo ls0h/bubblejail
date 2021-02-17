@@ -390,6 +390,8 @@ class BubblejailConfigApp(GladeBuilder):
 
     def _attach_window_interface(self, window_interface: Union[MainWindowInterface, Gtk.Widget]) -> None:
         self._clear_window()
+        w,h = self._gui_main_window.get_size()
+        self._gui_main_window.resize(w, 100)
         for buttons, pack in ((window_interface.get_left_buttons(), self._gui_main_window_headerbar.pack_start),
                          (window_interface.get_right_buttons(), self._gui_main_window_headerbar.pack_end)):
             if buttons:
