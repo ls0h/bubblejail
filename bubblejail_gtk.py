@@ -9,7 +9,6 @@ from bubblejail.services import BubblejailService, ServiceOptionTypes, ServiceOp
 
 path.append('/usr/local/lib/x86_64-linux-gnu/bubblejail/python_packages')
 from abc import ABC, abstractmethod
-from enum import IntEnum, auto
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -18,19 +17,27 @@ from gi.repository import Gtk
 GLADE_UI_FILE = './data/gtk/ui.glade'
 
 
-class GtkGladeUI:
-    _glade_ui_file: str
-    _glade_ui_root: str
+class GladeBuilder:
+    _glade_file: str
+    _glade_root_id: str
+    _glade_root_widget: Gtk.Widget
     _prefix = "_gui_"
 
     def __init__(self):
         super().__init__()
         builder = Gtk.Builder()
-        builder.add_objects_from_file(self._glade_ui_file, (self._glade_ui_root,))
+        builder.add_objects_from_file(self._glade_file, (self._glade_root_id,))
         for annotation in self.__class__.__annotations__.keys():
             if annotation.startswith(self._prefix):
                 setattr(self, annotation, builder.get_object(annotation[len(self._prefix):]))
+        self._glade_root_widget = builder.get_object(self._glade_root_id)
         builder.connect_signals(self)
+
+
+class GladeWidget(GladeBuilder, Gtk.Bin):
+    def __init__(self):
+        super().__init__()
+        self.add(self._glade_root_widget)
 
 
 class MainWindowInterface:
@@ -57,9 +64,9 @@ class InstanceListItem(Gtk.ListBoxRow):
         self.add(label)
 
 
-class InstanceListWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
-    _glade_ui_file = GLADE_UI_FILE
-    _glade_ui_root = 'instance_list_window'
+class InstanceListWindow(MainWindowInterface, GladeWidget):
+    _glade_file = GLADE_UI_FILE
+    _glade_root_id = 'instance_list_window'
 
     _gui_delete_instance_button: Gtk.Button
     _gui_add_instance_button: Gtk.Button
@@ -68,12 +75,10 @@ class InstanceListWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
 
     _gui_il_left_button_group: Gtk.HBox
     _gui_il_right_button_group: Gtk.HBox
-    _gui_instance_list_window: Gtk.VBox
 
     def __init__(self, app: BubblejailConfigApp):
         super().__init__()
         self._app = app
-        self.add(self._gui_instance_list_window)
         self.fill_list()
         self.change_state_to_no_selection()
 
@@ -136,17 +141,15 @@ class OptionWidgetBase:
     def get_sizegroup_subwidget(self) -> Optional[Gtk.Widget]: ...
 
 
-class BoolOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
-    _glade_ui_file = GLADE_UI_FILE
-    _glade_ui_root = 'bool_option_widget'
+class BoolOptionWidget(OptionWidgetBase, GladeWidget):
+    _glade_file = GLADE_UI_FILE
+    _glade_root_id = 'bool_option_widget'
 
-    _gui_bool_option_widget: Gtk.HBox
     _gui_bool_option_label: Gtk.Label
     _gui_bool_option_switch: Gtk.Switch
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.add(self._gui_bool_option_widget)
         self._gui_bool_option_label.set_text(self._option.pretty_name)
         self._gui_bool_option_label.set_tooltip_text(self._option.description)
         self._gui_bool_option_switch.set_active(bool(self._option.get_value()))
@@ -159,17 +162,15 @@ class BoolOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
         return self._gui_bool_option_label
 
 
-class StringOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
-    _glade_ui_file = GLADE_UI_FILE
-    _glade_ui_root = 'string_option_widget'
+class StringOptionWidget(OptionWidgetBase, GladeWidget):
+    _glade_file = GLADE_UI_FILE
+    _glade_root_id = 'string_option_widget'
 
-    _gui_string_option_widget: Gtk.HBox
     _gui_string_option_label: Gtk.Label
     _gui_string_option_entry: Gtk.Entry
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.add(self._gui_string_option_widget)
         self._gui_string_option_label.set_text(self._option.pretty_name)
         self._gui_string_option_label.set_tooltip_text(self._option.description)
         data = self._option.get_value()
@@ -185,37 +186,32 @@ class StringOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
         return self._gui_string_option_label
 
 
-class StrListItemWidget(GtkGladeUI, Gtk.Bin):
-    _glade_ui_file = GLADE_UI_FILE
-    _glade_ui_root = 'strlist_item_widget'
+class StrListItemWidget(GladeWidget):
+    _glade_file = GLADE_UI_FILE
+    _glade_root_id = 'strlist_item_widget'
 
-    _gui_strlist_item_widget: Gtk.HBox
     _gui_strlist_item_entry: Gtk.Entry
 
     def __init__(self, strlist_widget: StrListOptionWidget, string: str):
         super().__init__()
-        self.add(self._gui_strlist_item_widget)
         self._gui_strlist_item_entry.set_text(string)
 
 
-class StrListOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
-    _glade_ui_file = GLADE_UI_FILE
-    _glade_ui_root = 'strlist_option_widget'
+class StrListOptionWidget(OptionWidgetBase, GladeWidget):
+    _glade_file = GLADE_UI_FILE
+    _glade_root_id = 'strlist_option_widget'
 
-    _gui_strlist_option_widget: Gtk.VBox
     _gui_strlist_option_label: Gtk.Label
     _gui_strlist_option_strings: Gtk.VBox
     _gui_strlist_option_add_button: Gtk.Button
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.add(self._gui_strlist_option_widget)
         self._gui_strlist_option_label.set_text(self._option.pretty_name)
         self._gui_strlist_option_label.set_tooltip_text(self._option.description)
         self._gui_strlist_option_add_button.set_tooltip_text(self._option.description)
         for string in self._option.get_value():
             self._gui_strlist_option_strings.add(StrListItemWidget(self, string))
-
 
     def save(self) -> None:
         raise NotImplementedError
@@ -227,11 +223,10 @@ class StrListOptionWidget(OptionWidgetBase, GtkGladeUI, Gtk.Bin):
         print('new item')
 
 
-class ServiceWidget(GtkGladeUI, Gtk.Bin):
-    _glade_ui_file = GLADE_UI_FILE
-    _glade_ui_root = 'service_widget'
+class ServiceWidget(GladeWidget):
+    _glade_file = GLADE_UI_FILE
+    _glade_root_id = 'service_widget'
 
-    _gui_service_widget: Gtk.VBox
     _gui_service_title: Gtk.Label
     _gui_rollup_button_image: Gtk.Image
     _gui_add_del_button_image: Gtk.Image
@@ -249,7 +244,6 @@ class ServiceWidget(GtkGladeUI, Gtk.Bin):
         self._gui_service_title.set_text(service.pretty_name)
         self._gui_service_description.set_text(service.description)
         self._set_enabled_or_available_state()
-        self.add(self._gui_service_widget)
         for option in service.iter_options():
             # print(option)
             option_widget_class: Type[Union[OptionWidgetBase, Gtk.Container]]
@@ -287,13 +281,12 @@ class ServiceWidget(GtkGladeUI, Gtk.Bin):
         self._gui_rollup_button_image.set_from_stock(icons[self._rolled_up], Gtk.IconSize.BUTTON)
 
 
-class InstanceEditWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
-    _glade_ui_file = GLADE_UI_FILE
-    _glade_ui_root = 'instance_edit_window'
+class InstanceEditWindow(MainWindowInterface, GladeWidget):
+    _glade_file = GLADE_UI_FILE
+    _glade_root_id = 'instance_edit_window'
 
     _gui_ie_left_button_group: Gtk.Hbox
     _gui_ie_right_button_group: Gtk.Hbox
-    _gui_instance_edit_window: Gtk.VBox
 
     _gui_enabled_services_vbox: Gtk.VBox
     _gui_available_services_vbox: Gtk.VBox
@@ -303,7 +296,6 @@ class InstanceEditWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
         self._app = app
         self._need_save = False
         self._instance_name = instance_name
-        self.add(self._gui_instance_edit_window)
 
         instance_config = BubblejailDirectories.instance_get(instance_name)._read_config()
         for service in instance_config.iter_services(iter_disabled=True, iter_default=False):
@@ -339,9 +331,9 @@ class InstanceEditWindow(MainWindowInterface, GtkGladeUI, Gtk.Bin):
             self._gui_available_services_vbox.add(service_widget)
 
 
-class BubblejailConfigApp(GtkGladeUI):
-    _glade_ui_file = GLADE_UI_FILE
-    _glade_ui_root = 'main_window'
+class BubblejailConfigApp(GladeBuilder):
+    _glade_file = GLADE_UI_FILE
+    _glade_root_id = 'main_window'
 
     _gui_main_window: Gtk.Window
     _gui_main_window_headerbar: Gtk.HeaderBar
