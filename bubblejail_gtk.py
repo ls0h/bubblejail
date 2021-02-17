@@ -156,7 +156,7 @@ class BoolOptionWidget(OptionWidgetBase, GladeWidget):
         self._gui_bool_option_switch.set_tooltip_text(self._option.description)
 
     def save(self) -> None:
-        raise NotImplementedError
+        self._option.set_value(self._gui_bool_option_switch.get_active())
 
     def get_sizegroup_subwidget(self) -> Optional[Gtk.Widget]:
         return self._gui_bool_option_label
@@ -180,7 +180,7 @@ class StringOptionWidget(OptionWidgetBase, GladeWidget):
         self._gui_string_option_entry.set_tooltip_text(self._option.description)
 
     def save(self) -> None:
-        raise NotImplementedError
+        self._option.set_value(self._gui_string_option_entry.get_text())
 
     def get_sizegroup_subwidget(self) -> Optional[Gtk.Widget]:
         return self._gui_string_option_label
@@ -194,7 +194,14 @@ class StrListItemWidget(GladeWidget):
 
     def __init__(self, strlist_widget: StrListOptionWidget, string: str):
         super().__init__()
+        self._strlist_widget = strlist_widget
         self._gui_strlist_item_entry.set_text(string)
+
+    def get_text(self) -> str:
+        return self._gui_strlist_item_entry.get_text()
+
+    def on_strlist_item_del_button_clicked(self, button: Gtk.Button):
+        self._strlist_widget.remove_item(self)
 
 
 class StrListOptionWidget(OptionWidgetBase, GladeWidget):
@@ -213,14 +220,32 @@ class StrListOptionWidget(OptionWidgetBase, GladeWidget):
         for string in self._option.get_value():
             self._gui_strlist_option_strings.add(StrListItemWidget(self, string))
 
+    def _remove_empty_items(self):
+        for item in self._gui_strlist_option_strings.get_children():
+            item: StrListItemWidget
+            if item.get_text() == '':
+                self._gui_strlist_option_strings.remove(item)
+
     def save(self) -> None:
-        raise NotImplementedError
+        self._remove_empty_items()
+        strings: List[str] = []
+        for item in self._gui_strlist_option_strings.get_children():
+            item: StrListItemWidget
+            strings.append(item.get_text())
+        self._option.set_value(strings)
 
     def get_sizegroup_subwidget(self) -> Optional[Gtk.Widget]:
         return None
 
+    def remove_item(self, item: StrListItemWidget):
+        self._remove_empty_items()
+        if item in self._gui_strlist_option_strings.get_children():
+            self._gui_strlist_option_strings.remove(item)
+
     def on_strlist_option_add_button_clicked(self, button: Gtk.Button):
-        print('new item')
+        self._remove_empty_items()
+        self._gui_strlist_option_strings.add(StrListItemWidget(strlist_widget=self, string=''))
+        self._gui_strlist_option_strings.show_all()
 
 
 class ServiceWidget(GladeWidget):
@@ -236,6 +261,7 @@ class ServiceWidget(GladeWidget):
 
     def __init__(self, edit_window: InstanceEditWindow, service: BubblejailService):
         super().__init__()
+        self._option_widgets: List[OptionWidgetBase] = []
         self._size_group = Gtk.SizeGroup()
         self._size_group.set_mode(Gtk.SizeGroupMode.HORIZONTAL)
         self._rolled_up = False
@@ -245,7 +271,6 @@ class ServiceWidget(GladeWidget):
         self._gui_service_description.set_text(service.description)
         self._set_enabled_or_available_state()
         for option in service.iter_options():
-            # print(option)
             option_widget_class: Type[Union[OptionWidgetBase, Gtk.Container]]
             if isinstance(option, OptionBool):
                 option_widget_class = BoolOptionWidget
@@ -254,8 +279,9 @@ class ServiceWidget(GladeWidget):
             elif isinstance(option, OptionStrList):
                 option_widget_class = StrListOptionWidget
             else:
-                continue
+                raise NotImplementedError
             option_widget = option_widget_class(option=option)
+            self._option_widgets.append(option_widget)
             self._gui_service_params_list.add(option_widget)
             if subwidget := option_widget.get_sizegroup_subwidget():
                 self._size_group.add_widget(subwidget)
@@ -266,6 +292,10 @@ class ServiceWidget(GladeWidget):
         icons = {True: 'gtk-delete', False: 'gtk-add'}
         self._gui_add_del_button_image.set_from_stock(icons[self.service.enabled], Gtk.IconSize.BUTTON)
         self._gui_service_params_list.set_sensitive(self.service.enabled)
+
+    def save(self):
+        for option_widget in self._option_widgets:
+            option_widget.save()
 
     def on_add_del_button_clicked(self, button: Gtk.Button) -> None:
         self.service.enabled = not self.service.enabled
@@ -296,13 +326,16 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
         self._app = app
         self._need_save = False
         self._instance_name = instance_name
-
-        instance_config = BubblejailDirectories.instance_get(instance_name)._read_config()
-        for service in instance_config.iter_services(iter_disabled=True, iter_default=False):
+        self._service_widgets: List[ServiceWidget] = []
+        self._bubblejail_instance = BubblejailDirectories.instance_get(instance_name)
+        self._instance_config = self._bubblejail_instance._read_config()
+        for service in self._instance_config.iter_services(iter_disabled=True, iter_default=False):
+            service_widget = ServiceWidget(edit_window=self, service=service)
+            self._service_widgets.append(service_widget)
             if service.enabled:
-                self._gui_enabled_services_vbox.add(ServiceWidget(edit_window=self, service=service))
+                self._gui_enabled_services_vbox.add(service_widget)
             else:
-                self._gui_available_services_vbox.add(ServiceWidget(edit_window=self, service=service))
+                self._gui_available_services_vbox.add(service_widget)
 
     def get_left_buttons(self) -> Optional[Gtk.Container]:
         return self._gui_ie_left_button_group
@@ -313,13 +346,6 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
     def get_subtitle(self) -> str:
         return self._instance_name
 
-    def on_back_to_list_button_clicked(self, button: Gtk.Button) -> None:
-        if not self._need_save:
-            self._app.switch_to_list()
-        else:
-            # FIXME: Add dialog box!
-            print('Add dialog box!')
-
     def reparent_service_widget(self, service_widget: ServiceWidget):
         if service_widget in self._gui_enabled_services_vbox.get_children():
             self._gui_enabled_services_vbox.remove(service_widget)
@@ -329,6 +355,18 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
             self._gui_enabled_services_vbox.add(service_widget)
         else:
             self._gui_available_services_vbox.add(service_widget)
+
+    def on_back_to_list_button_clicked(self, button: Gtk.Button) -> None:
+        if not self._need_save:
+            self._app.switch_to_list()
+        else:
+            # FIXME: Add dialog box!
+            print('Add dialog box!')
+
+    def on_save_instance_button_clicked(self, button: Gtk.Button) -> None:
+        for sw in self._service_widgets:
+            sw.save()
+        self._bubblejail_instance.save_config(self._instance_config)
 
 
 class BubblejailConfigApp(GladeBuilder):
