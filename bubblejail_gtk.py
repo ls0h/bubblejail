@@ -4,6 +4,8 @@ from sys import path
 from typing import Generator, Optional, Union, Type, List, Dict
 
 from bubblejail.bubblejail_directories import BubblejailDirectories
+from bubblejail.bubblejail_instance import BubblejailInstance, BubblejailProfile
+from bubblejail.exceptions import BubblejailInstanceNotFoundError
 from bubblejail.services import BubblejailService, ServiceOptionTypes, ServiceOption, OptionBool, OptionStr, OptionSpaceSeparatedStr, \
     OptionStrList
 
@@ -82,15 +84,25 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
     _gui_edit_instance_button: Gtk.Button
     _gui_instance_list: Gtk.ListBox
 
-    def __init__(self, app: BubblejailConfigApp):
+    def __init__(self, app: BubblejailConfigApp, selection: Optional[str] = None):
         super().__init__()
         self._app = app
         self.fill_list()
-        self.change_state_to_no_selection()
+        if selection is None:
+            self.change_state_to_no_selection()
+        else:
+            # TODO: Find a better way to select list item by text
+            for item in self._gui_instance_list.get_children():
+                item: InstanceListItem
+                if item.instance_name == selection:
+                    self._gui_instance_list.select_row(item)
+                    break
+            self.change_state_to_user_selected()
 
     def fill_list(self) -> None:
-        for instance_path in BubblejailDirectories.iter_instances_path():
-            self._gui_instance_list.add(InstanceListItem(instance_path.name))
+        names = sorted([instance_path.name for instance_path in BubblejailDirectories.iter_instances_path()])
+        for name in names:
+            self._gui_instance_list.add(InstanceListItem(name))
 
     def change_state_to_no_selection(self) -> None:
         # TODO: Unselect any selected row
@@ -118,7 +130,7 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
         print(button)
 
     def on_add_instance_button_clicked(self, button: Gtk.Button) -> None:
-        print(button)
+        self._app.switch_to_new()
 
     def on_edit_instance_button_clicked(self, button: Gtk.Button) -> None:
         self._switch_app_to_edit_mode()
@@ -360,6 +372,96 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
         self._bubblejail_instance.save_config(self._instance_config)
 
 
+class NewInstanceWindow(MainWindowInterface, GladeWidget):
+    _glade_file = f'{GLADE_UI_DIR}new_instance_ui.glade'
+    _glade_root_id = 'new_instance_window'
+
+    _gui_name_entry: Gtk.Entry
+    _gui_profile_combo: Gtk.ComboBoxText
+    _gui_desktop_switch: Gtk.Switch
+    _gui_warning_label: Gtk.Label
+    _gui_status_label: Gtk.Label
+    _gui_save_instance_button: Gtk.Button
+
+    def __init__(self, app: BubblejailConfigApp):
+        super().__init__()
+        self._app = app
+        self._generate_profiles_list()
+        self._validate_data()
+
+    def get_subtitle(self) -> str:
+        return 'Create new instance'
+
+    def _generate_profiles_list(self):
+        profiles_names = set()
+        for profiles_directory in BubblejailDirectories.iter_profile_directories():
+            for profile_file in profiles_directory.iterdir():
+                profiles_names.add(profile_file.stem)
+        for profile_name in sorted(profiles_names):
+            self._gui_profile_combo.append_text(profile_name)
+
+
+    def _validate_data(self):
+        ok = False
+        text = ''
+        new_instance_name = self._gui_name_entry.get_text()
+        profile_name = self._gui_profile_combo.get_active_text()
+        existing_instance: Optional[BubblejailInstance] = None
+        try:
+            existing_instance = BubblejailDirectories.instance_get(new_instance_name)
+        except BubblejailInstanceNotFoundError:
+            ...
+        if new_instance_name == '':
+            text = 'Please enter a name for the instance'
+        elif existing_instance is not None:
+            text = f"Name '{new_instance_name}' is already used!"
+        elif profile_name != 'None':
+            profile = BubblejailDirectories.profile_get(profile_name)
+            if profile.dot_desktop_path is not None and not profile.dot_desktop_path.is_file():
+                text = f"Desktop entry for '{profile_name}' profile does not exist\n" \
+                       f"Maybe you don't have application installed?"
+            else:
+                ok = True
+                text = f"{profile.description}\n" \
+                       f"Import tips:  {profile.import_tips}"
+        else:
+            ok = True
+            text = 'Click Save to create new instance with empty profile'
+        self._gui_status_label.set_text(text)
+        if ok:
+            self._gui_warning_label.hide()
+            self._gui_save_instance_button.set_sensitive(True)
+        else:
+            self._gui_warning_label.show()
+            self._gui_save_instance_button.set_sensitive(False)
+
+    def on_back_to_list_button_clicked(self, button: Gtk.Button) -> None:
+        self._app.switch_to_list()
+
+    def on_save_instance_button_clicked(self, button: Gtk.Button) -> None:
+        new_instance_name = self._gui_name_entry.get_text()
+        create_dot_desktop = self._gui_desktop_switch.get_active()
+        profile_name = self._gui_profile_combo.get_active_text()
+        if profile_name == 'None':
+            profile_name = None
+        BubblejailDirectories.create_new_instance(
+            new_name=new_instance_name,
+            profile_name=profile_name,
+            create_dot_desktop=create_dot_desktop,
+        )
+        self._app.switch_to_list(selection=new_instance_name)
+
+    def on_name_entry_changed(self, entry: Gtk.Entry):
+        self._validate_data()
+
+    def on_profile_combo_changed(self, combo: Gtk.ComboBoxText):
+        if profile_name := combo.get_active_text():
+            profile = BubblejailDirectories.profile_get(profile_name)
+            if profile.dot_desktop_path is not None:
+                self._gui_name_entry.set_text(profile.dot_desktop_path.stem)
+        self._validate_data()
+
+
 class BubblejailConfigApp(GladeBuilder):
     _glade_file = f'{GLADE_UI_DIR}main_window.glade'
     _glade_root_id = 'main_window'
@@ -394,11 +496,14 @@ class BubblejailConfigApp(GladeBuilder):
         self._gui_main_window_container.add(window_interface)
         self._gui_main_window_container.show_all()
 
-    def switch_to_list(self) -> None:
-        self._attach_window_interface(InstanceListWindow(app=self))
+    def switch_to_list(self, selection: Optional[str] = None) -> None:
+        self._attach_window_interface(InstanceListWindow(app=self, selection=selection))
 
     def switch_to_edit(self, instance_name: str) -> None:
         self._attach_window_interface(InstanceEditWindow(app=self, instance_name=instance_name))
+
+    def switch_to_new(self) -> None:
+        self._attach_window_interface(NewInstanceWindow(app=self))
 
     def on_main_window_destroy(self, *args) -> None:
         Gtk.main_quit()
