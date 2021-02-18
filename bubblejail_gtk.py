@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sys import path
-from typing import Generator, Optional, Union, Type, List
+from typing import Generator, Optional, Union, Type, List, Dict
 
 from bubblejail.bubblejail_directories import BubblejailDirectories
 from bubblejail.services import BubblejailService, ServiceOptionTypes, ServiceOption, OptionBool, OptionStr, OptionSpaceSeparatedStr, \
@@ -27,7 +27,13 @@ class GladeBuilder:
         super().__init__()
         builder = Gtk.Builder()
         builder.add_objects_from_file(self._glade_file, (self._glade_root_id,))
-        for annotation in self.__class__.__annotations__.keys():
+        classes: List[Type] = [self.__class__]
+        classes.extend(self.__class__.__bases__)
+        annotations: Dict[str, Type] = {}
+        for cls in classes:
+            if hasattr(cls, '__annotations__'):
+                annotations.update(cls.__annotations__)
+        for annotation in annotations:
             if annotation.startswith(self._prefix):
                 setattr(self, annotation, builder.get_object(annotation[len(self._prefix):]))
         self._glade_root_widget = builder.get_object(self._glade_root_id)
@@ -41,14 +47,17 @@ class GladeWidget(GladeBuilder, Gtk.Bin):
 
 
 class MainWindowInterface:
+    _gui_left_button_group: Gtk.Container
+    _gui_right_button_group: Gtk.Container
+
     def __init__(self):
         super().__init__()
 
-    @abstractmethod
-    def get_left_buttons(self) -> Optional[Gtk.Container]: ...
+    def get_left_buttons(self) -> Optional[Gtk.Container]:
+        return self._gui_left_button_group
 
-    @abstractmethod
-    def get_right_buttons(self) -> Optional[Gtk.Container]: ...
+    def get_right_buttons(self) -> Optional[Gtk.Container]:
+        return self._gui_right_button_group
 
     @abstractmethod
     def get_subtitle(self) -> str: ...
@@ -73,20 +82,11 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
     _gui_edit_instance_button: Gtk.Button
     _gui_instance_list: Gtk.ListBox
 
-    _gui_il_left_button_group: Gtk.HBox
-    _gui_il_right_button_group: Gtk.HBox
-
     def __init__(self, app: BubblejailConfigApp):
         super().__init__()
         self._app = app
         self.fill_list()
         self.change_state_to_no_selection()
-
-    def get_left_buttons(self) -> Optional[Gtk.Container]:
-        return self._gui_il_left_button_group
-
-    def get_right_buttons(self) -> Optional[Gtk.Container]:
-        return self._gui_il_right_button_group
 
     def fill_list(self) -> None:
         for instance_path in BubblejailDirectories.iter_instances_path():
@@ -315,9 +315,6 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
     _glade_file = f'{GLADE_UI_DIR}instance_edit_ui.glade'
     _glade_root_id = 'instance_edit_window'
 
-    _gui_ie_left_button_group: Gtk.Hbox
-    _gui_ie_right_button_group: Gtk.Hbox
-
     _gui_enabled_services_vbox: Gtk.VBox
     _gui_available_services_vbox: Gtk.VBox
 
@@ -336,12 +333,6 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
                 self._gui_enabled_services_vbox.add(service_widget)
             else:
                 self._gui_available_services_vbox.add(service_widget)
-
-    def get_left_buttons(self) -> Optional[Gtk.Container]:
-        return self._gui_ie_left_button_group
-
-    def get_right_buttons(self) -> Optional[Gtk.Container]:
-        return self._gui_ie_right_button_group
 
     def get_subtitle(self) -> str:
         return self._instance_name

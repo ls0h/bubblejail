@@ -16,11 +16,11 @@
         <property name="vexpand">True</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkBox" id="__tmp1">
+          <object class="GtkBox" id="__tmp">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkBox" id="ie_left_button_group">
+              <object class="GtkBox" id="left_button_group">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
@@ -49,7 +49,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="ie_right_button_group">
+              <object class="GtkBox" id="right_button_group">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
