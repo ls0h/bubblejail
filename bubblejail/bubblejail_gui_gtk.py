@@ -1,22 +1,35 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Copyright 2021 Aleksey Shaferov (ls0h)
+
+# This file is part of bubblejail.
+# bubblejail is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# bubblejail is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with bubblejail.  If not, see <https://www.gnu.org/licenses/>.
+
 from __future__ import annotations
+from typing import Optional, Union, Type, List, Dict
 
-from sys import path
-from typing import Generator, Optional, Union, Type, List, Dict
-
+from abc import abstractmethod
+from bubblejail.bubblejail_utils import BubblejailSettings
 from bubblejail.bubblejail_directories import BubblejailDirectories
-from bubblejail.bubblejail_instance import BubblejailInstance, BubblejailProfile
+from bubblejail.bubblejail_instance import BubblejailInstance
 from bubblejail.exceptions import BubblejailInstanceNotFoundError
-from bubblejail.services import BubblejailService, ServiceOptionTypes, ServiceOption, OptionBool, OptionStr, OptionSpaceSeparatedStr, \
+from bubblejail.services import BubblejailService, ServiceOption, OptionBool, OptionStr, OptionSpaceSeparatedStr, \
     OptionStrList
 
-path.append('/usr/local/lib/x86_64-linux-gnu/bubblejail/python_packages')
-from abc import ABC, abstractmethod
 import gi
-
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
-GLADE_UI_DIR = './data/gtk/'
+GLADE_UI_DIR = f'{BubblejailSettings.SHARE_PATH_STR}/bubblejail/gtk/'
 
 
 class GladeBuilder:
@@ -98,6 +111,8 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
                     self._gui_instance_list.select_row(item)
                     break
             self.change_state_to_user_selected()
+        # FIXME: Implement action for Delete button
+        self._gui_delete_instance_button.get_parent().remove(self._gui_delete_instance_button)
 
     def fill_list(self) -> None:
         names = sorted([instance_path.name for instance_path in BubblejailDirectories.iter_instances_path()])
@@ -507,7 +522,3 @@ class BubblejailConfigApp(GladeBuilder):
 
     def on_main_window_destroy(self, *args) -> None:
         Gtk.main_quit()
-
-
-if __name__ == '__main__':
-    app = BubblejailConfigApp()

@@ -21,7 +21,7 @@ bubblejail_cli_launch_m4 = custom_target(
 bubblejail_gui_qt_launch_m4 = custom_target(
     'bubblejail_gui_qt_launch_m4',
     build_by_default : true,
-    input : './bubblejail_gui_qt_launch.m4',
+    input : './bubblejail_gui_gtk_launch.m4',
     output : 'bubblejail-config',
     capture : true,
     install : true,
