@@ -96,7 +96,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkStack">
+                  <object class="GtkStack" id="search_switcher_stack">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="transition_type">crossfade</property>
@@ -105,23 +105,23 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="halign">center</property>
-                        <property name="stack">stack1</property>
+                        <property name="stack">enabled_available_services_stack</property>
                       </object>
                       <packing>
-                        <property name="name">page0</property>
+                        <property name="name">switcher</property>
                         <property name="title" translatable="yes">page0</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkSearchEntry">
+                      <object class="GtkSearchEntry" id="service_filter_entry">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
-                        <property name="primary_icon_name">edit-find-symbolic</property>
                         <property name="primary_icon_activatable">False</property>
                         <property name="primary_icon_sensitive">False</property>
+                        <signal name="search-changed" handler="on_service_filter_entry_search_changed" swapped="no"/>
                       </object>
                       <packing>
-                        <property name="name">page1</property>
+                        <property name="name">entry</property>
                         <property name="title" translatable="yes">page1</property>
                         <property name="position">1</property>
                       </packing>
@@ -134,7 +134,24 @@
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkToggleButton" id="filter_toggle_button">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <signal name="toggled" handler="on_filter_toggle_button_toggled" swapped="no"/>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="stock">gtk-find</property>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
                 </child>
               </object>
               <packing>
@@ -144,7 +161,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkStack" id="stack1">
+              <object class="GtkStack" id="enabled_available_services_stack">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="transition_type">crossfade</property>
@@ -202,7 +219,7 @@ Please open 'Available services' tab and enable something.</property>
                     </child>
                   </object>
                   <packing>
-                    <property name="name">page_enabled</property>
+                    <property name="name">enabled</property>
                     <property name="title" translatable="yes">Enabled services</property>
                   </packing>
                 </child>
@@ -230,7 +247,7 @@ Please open 'Available services' tab and enable something.</property>
                     </child>
                   </object>
                   <packing>
-                    <property name="name">page_available</property>
+                    <property name="name">available</property>
                     <property name="title" translatable="yes">Available services</property>
                     <property name="position">1</property>
                   </packing>
