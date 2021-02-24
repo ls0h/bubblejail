@@ -403,6 +403,7 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
     _gui_enabled_services_vbox: Gtk.VBox
     _gui_enabled_services_stub: Gtk.Label
     _gui_available_services_vbox: Gtk.VBox
+    _gui_filter_toggle_button: Gtk.ToggleButton
     _gui_search_switcher_stack: Gtk.Stack
     _gui_enabled_available_services_stack: Gtk.Stack
     _gui_service_filter_entry: Gtk.SearchEntry
@@ -452,6 +453,7 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
     def on_filter_toggle_button_toggled(self, toggle_button: Gtk.ToggleButton):
         if toggle_button.get_active():
             self._gui_search_switcher_stack.set_visible_child_name('entry')
+            self._gui_service_filter_entry.grab_focus()
         else:
             self._gui_search_switcher_stack.set_visible_child_name('switcher')
             self._gui_service_filter_entry.set_text('')
@@ -473,6 +475,9 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
                 service_widget.show()
             else:
                 service_widget.hide()
+
+    def on_service_filter_entry_stop_search(self, search_entry: Gtk.SearchEntry):
+        self._gui_filter_toggle_button.set_active(False)
 
     def _disable_filter(self):
         for service_widget in self._get_visible_services_list().get_children():

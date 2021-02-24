@@ -64,12 +64,31 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
+                    <property name="pack_type">end</property>
                     <property name="position">0</property>
                   </packing>
                 </child>
-                <style>
-                  <class name="linked"/>
-                </style>
+                <child>
+                  <object class="GtkToggleButton" id="filter_toggle_button">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <signal name="toggled" handler="on_filter_toggle_button_toggled" swapped="no"/>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="stock">gtk-find</property>
+                      </object>
+                    </child>
+                    <accelerator key="f" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -119,6 +138,7 @@
                         <property name="primary_icon_activatable">False</property>
                         <property name="primary_icon_sensitive">False</property>
                         <signal name="search-changed" handler="on_service_filter_entry_search_changed" swapped="no"/>
+                        <signal name="stop-search" handler="on_service_filter_entry_stop_search" swapped="no"/>
                       </object>
                       <packing>
                         <property name="name">entry</property>
@@ -134,24 +154,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkToggleButton" id="filter_toggle_button">
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
-                    <signal name="toggled" handler="on_filter_toggle_button_toggled" swapped="no"/>
-                    <child>
-                      <object class="GtkImage">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="stock">gtk-find</property>
-                      </object>
-                    </child>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
-                  </packing>
+                  <placeholder/>
                 </child>
               </object>
               <packing>
