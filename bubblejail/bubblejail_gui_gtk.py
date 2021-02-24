@@ -400,6 +400,7 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
     _glade_root_id = 'instance_edit_window'
 
     _gui_enabled_services_vbox: Gtk.VBox
+    _gui_enabled_services_stub: Gtk.Label
     _gui_available_services_vbox: Gtk.VBox
 
     def __init__(self, app: BubblejailConfigApp, instance_name: str):
@@ -417,6 +418,7 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
                 self._gui_enabled_services_vbox.add(service_widget)
             else:
                 self._gui_available_services_vbox.add(service_widget)
+        self.on_enabled_services_vbox_add_remove()
 
     def get_subtitle(self) -> str:
         return self._instance_name
@@ -442,6 +444,12 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
         for sw in self._service_widgets:
             sw.save()
         self._bubblejail_instance.save_config(self._instance_config)
+
+    def on_enabled_services_vbox_add_remove(self, *args, **kwargs):
+        if len(self._gui_enabled_services_vbox.get_children()) == 0:
+            self._gui_enabled_services_stub.show()
+        else:
+            self._gui_enabled_services_stub.hide()
 
 
 class NewInstanceWindow(MainWindowInterface, GladeWidget):
