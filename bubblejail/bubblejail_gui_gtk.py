@@ -15,21 +15,43 @@
 # along with bubblejail.  If not, see <https://www.gnu.org/licenses/>.
 
 from __future__ import annotations
-from typing import Optional, Union, Type, List, Dict
+
+from functools import lru_cache
+from typing import Optional, Union, Type, List, Dict, Sequence, Tuple
 
 from abc import abstractmethod
+
 from bubblejail.bubblejail_utils import BubblejailSettings
 from bubblejail.bubblejail_directories import BubblejailDirectories
 from bubblejail.bubblejail_instance import BubblejailInstance
 from bubblejail.exceptions import BubblejailInstanceNotFoundError
 from bubblejail.services import BubblejailService, ServiceOption, OptionBool, OptionStr, OptionSpaceSeparatedStr, \
-    OptionStrList
+    OptionStrList, CommonSettings
 
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
+from gi.repository import Gio
 
 GLADE_UI_DIR = f'{BubblejailSettings.SHARE_PATH_STR}/bubblejail/gtk/'
+
+
+@lru_cache
+def list_installed_apps() -> Sequence[Gio.DesktopAppInfo]:
+    return Gio.app_info_get_all()
+
+
+def get_icon_name_by_app_id(app_id: str) -> Optional[str]:
+    # TODO: Move it to a separate module?
+    if not app_id.endswith('.desktop'):
+        app_id = f'{app_id}.desktop'
+    for app in list_installed_apps():
+        if app.get_id() == app_id:
+            icon: Gio.ThemedIcon = app.get_icon()
+            if icon_names := icon.get_names():
+                icon_names: Sequence[str]
+                return icon_names[0]
+    return None
 
 
 class GladeBuilder:
@@ -96,11 +118,18 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
     _gui_add_instance_button: Gtk.Button
     _gui_edit_instance_button: Gtk.Button
     _gui_instance_list: Gtk.ListBox
+    _gui_instance_info_label: Gtk.Label
+    _gui_instance_info_icon: Gtk.Image
+    _gui_instance_info_group: Gtk.Box
 
-    def __init__(self, app: BubblejailConfigApp, selection: Optional[str] = None):
+    def __init__(self, app: BubblejailConfigApp):
         super().__init__()
         self._app = app
-        self.fill_list()
+        self._fill_list()
+        # FIXME: Implement action for Delete button
+        self._gui_delete_instance_button.get_parent().remove(self._gui_delete_instance_button)
+
+    def select_instance(self, selection: Optional[str] = None):
         if selection is None:
             self.change_state_to_no_selection()
         else:
@@ -111,10 +140,8 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
                     self._gui_instance_list.select_row(item)
                     break
             self.change_state_to_user_selected()
-        # FIXME: Implement action for Delete button
-        self._gui_delete_instance_button.get_parent().remove(self._gui_delete_instance_button)
 
-    def fill_list(self) -> None:
+    def _fill_list(self) -> None:
         names = sorted([instance_path.name for instance_path in BubblejailDirectories.iter_instances_path()])
         for name in names:
             self._gui_instance_list.add(InstanceListItem(name))
@@ -124,10 +151,40 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
         self._gui_instance_list.unselect_all()
         self._gui_delete_instance_button.set_sensitive(False)
         self._gui_edit_instance_button.set_sensitive(False)
+        self._gui_instance_info_group.hide()
 
     def change_state_to_user_selected(self) -> None:
         self._gui_delete_instance_button.set_sensitive(True)
         self._gui_edit_instance_button.set_sensitive(True)
+        self._gui_instance_info_group.show()
+        self._fill_instance_info()
+
+    def _fill_instance_info(self):
+        row: InstanceListItem = self._gui_instance_list.get_selected_row()
+        text = ''
+        bubblejail_instance = BubblejailDirectories.instance_get(row.instance_name)
+        instance_config = bubblejail_instance._read_config()
+        service_names: List[str] = []
+        for service in instance_config.iter_services():
+            if service.pretty_name != 'Default settings':
+                service_names.append(service.pretty_name)
+            if isinstance(service, CommonSettings):
+                service: CommonSettings
+                executable = service.executable_name.get_gui_value().replace('\t', '\n')
+                text += f'\n<b>Command line:</b> {executable}\n'
+        if len(service_names) > 0:
+            text += '\n<b>Enabled services:</b>\n' + ', '.join(service_names) + '\n'
+        else:
+            text += '\n<b>Enabled services:</b> None\n'
+        self._gui_instance_info_label.set_label(text)
+        icon_name: Optional[str] = None
+        if desktop_entry_name := bubblejail_instance.metadata_desktop_entry_name:
+            icon_name = get_icon_name_by_app_id(desktop_entry_name)
+        if icon_name:
+            self._gui_instance_info_icon.show()
+            self._gui_instance_info_icon.set_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
+        else:
+            self._gui_instance_info_icon.hide()
 
     def get_subtitle(self) -> str:
         return 'Existing instances'
@@ -485,6 +542,8 @@ class BubblejailConfigApp(GladeBuilder):
     _gui_main_window_headerbar: Gtk.HeaderBar
     _gui_main_window_container: Gtk.Box
 
+    _main_window_sizes: Dict[str, Tuple[int, int]] = {}
+
     def __init__(self):
         super().__init__()
         self.switch_to_list()
@@ -492,14 +551,26 @@ class BubblejailConfigApp(GladeBuilder):
         Gtk.main()
 
     def _clear_window(self) -> None:
+        if len(self._gui_main_window_container.get_children()) > 0:
+            # TODO: Multiple widgets?
+            current_window_interface: Gtk.Widget = self._gui_main_window_container.get_children()[0]
+            w, h = self._gui_main_window.get_size()
+            self._main_window_sizes[current_window_interface.__class__.__name__] = (w, h)
         self._gui_main_window_container.foreach(self._gui_main_window_container.remove)
         self._gui_main_window_headerbar.foreach(self._gui_main_window_headerbar.remove)
         self._gui_main_window_headerbar.set_subtitle('')
 
     def _attach_window_interface(self, window_interface: Union[MainWindowInterface, Gtk.Widget]) -> None:
         self._clear_window()
-        w,h = self._gui_main_window.get_size()
-        self._gui_main_window.resize(w, 100)
+        interface_name = window_interface.__class__.__name__
+        if interface_name in self._main_window_sizes:
+            # Restore previous size for that interface state
+            w, h = self._main_window_sizes[interface_name]
+            self._gui_main_window.resize(w, h)
+        else:
+            # Resize to minimal size
+            w,h = self._gui_main_window.get_size()
+            self._gui_main_window.resize(w, 100)
         for buttons, pack in ((window_interface.get_left_buttons(), self._gui_main_window_headerbar.pack_start),
                          (window_interface.get_right_buttons(), self._gui_main_window_headerbar.pack_end)):
             if buttons:
@@ -512,7 +583,9 @@ class BubblejailConfigApp(GladeBuilder):
         self._gui_main_window_container.show_all()
 
     def switch_to_list(self, selection: Optional[str] = None) -> None:
-        self._attach_window_interface(InstanceListWindow(app=self, selection=selection))
+        window_interface = InstanceListWindow(app=self)
+        self._attach_window_interface(window_interface)
+        window_interface.select_instance(selection)
 
     def switch_to_edit(self, instance_name: str) -> None:
         self._attach_window_interface(InstanceEditWindow(app=self, instance_name=instance_name))
