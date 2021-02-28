@@ -6,6 +6,7 @@
     <property name="width_request">500</property>
     <property name="can_focus">False</property>
     <property name="window_position">center</property>
+    <property name="icon_name">bubblejail-config</property>
     <signal name="destroy" handler="on_main_window_destroy" swapped="no"/>
     <child type="titlebar">
       <object class="GtkHeaderBar" id="main_window_headerbar">
