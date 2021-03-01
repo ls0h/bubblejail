@@ -27,6 +27,8 @@ from bubblejail.bubblejail_instance import BubblejailInstance
 from bubblejail.exceptions import BubblejailInstanceNotFoundError
 from bubblejail.services import BubblejailService, ServiceOption, OptionBool, OptionStr, OptionSpaceSeparatedStr, \
     OptionStrList, CommonSettings
+from bubblejail.bubblejail_gtk_glade import GladeBuilder, GladeWidget
+from bubblejail.bubblejail_gtk_search import SearchBar
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -64,35 +66,6 @@ def get_icon_name_by_instance(bubblejail_instance: Union[BubblejailInstance, str
     if desktop_entry_name := bubblejail_instance.metadata_desktop_entry_name:
         return get_icon_name_by_app_id(desktop_entry_name, fallback=fallback)
     return fallback
-
-
-class GladeBuilder:
-    _glade_file: str
-    _glade_root_id: str
-    _glade_root_widget: Gtk.Widget
-    _prefix = "_gui_"
-
-    def __init__(self):
-        super().__init__()
-        builder = Gtk.Builder()
-        builder.add_objects_from_file(self._glade_file, (self._glade_root_id,))
-        classes: List[Type] = [self.__class__]
-        classes.extend(self.__class__.__bases__)
-        annotations: Dict[str, Type] = {}
-        for cls in classes:
-            if hasattr(cls, '__annotations__'):
-                annotations.update(cls.__annotations__)
-        for annotation in annotations:
-            if annotation.startswith(self._prefix):
-                setattr(self, annotation, builder.get_object(annotation[len(self._prefix):]))
-        self._glade_root_widget = builder.get_object(self._glade_root_id)
-        builder.connect_signals(self)
-
-
-class GladeWidget(GladeBuilder, Gtk.Bin):
-    def __init__(self):
-        super().__init__()
-        self.add(self._glade_root_widget)
 
 
 class MainWindowInterface:
@@ -140,11 +113,9 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
     _glade_file = f'{GLADE_UI_DIR}instance_list_ui.glade'
     _glade_root_id = 'instance_list_window'
 
-    _gui_filter_instances_button: Gtk.Button
     _gui_add_instance_button: Gtk.Button
     _gui_filter_instances_button: Gtk.ToggleButton
-    _gui_search_revealer: Gtk.Revealer
-    _gui_instance_filter_entry: Gtk.SearchEntry
+    _gui_searchbar_placeholder: Gtk.Box
 
     _gui_instance_list: Gtk.ListBox
     _gui_instance_info_label: Gtk.Label
@@ -154,6 +125,7 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
     def __init__(self, app: BubblejailConfigApp):
         super().__init__()
         self._app = app
+        self._gui_searchbar_placeholder.add(SearchBar(self._gui_filter_instances_button, self._filter_instance_list))
         self._fill_list()
 
     def select_instance(self, selection: Optional[str] = None):
@@ -224,37 +196,13 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
     def on_add_instance_button_clicked(self, button: Gtk.Button) -> None:
         self._app.switch_to_new()
 
-    def on_filter_instances_button_toggled(self, button: Gtk.ToggleButton):
-        active = button.get_active()
-        self._gui_search_revealer.set_reveal_child(active)
-        if active:
-            self._gui_instance_filter_entry.grab_focus()
-        else:
-            self._filter_instance_list('')
-
-    def on_instance_filter_entry_search_changed(self, entry: Gtk.SearchEntry):
-        self._filter_instance_list(entry.get_text())
-
-    def on_instance_filter_entry_next_match(self, entry: Gtk.SearchEntry):
-        print('on_instance_filter_entry_next_match')
-
-    def on_instance_filter_entry_stop_search(self, entry: Gtk.SearchEntry):
-        self._filter_instance_list('')
-
-    def on_instance_filter_entry_focus_out_event(self, *args):
-        # TODO: Deactivate search entry on focus out?
-        pass
-
     def _filter_instance_list(self, text: str = ''):
         for instance_list_item in self._gui_instance_list.get_children():
             instance_list_item: InstanceListItem
-            if text in instance_list_item.instance_name:
+            if text in instance_list_item.instance_name.lower():
                 instance_list_item.show()
             else:
                 instance_list_item.hide()
-        if text == '':
-            self._gui_filter_instances_button.set_active(False)
-            self._gui_instance_filter_entry.set_text('')
 
     def switch_app_to_edit_mode(self) -> None:
         if selected_row := self._gui_instance_list.get_selected_row():

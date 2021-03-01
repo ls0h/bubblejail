@@ -4,6 +4,8 @@ source_files = [
    'bubblejail_cli.py',
    'bubblejail_directories.py',
    'bubblejail_gui_gtk.py',
+   'bubblejail_gtk_glade.py',
+   'bubblejail_gtk_search.py',
    'bubblejail_helper.py',
    'bubblejail_instance.py',
    'bubblejail_seccomp.py',

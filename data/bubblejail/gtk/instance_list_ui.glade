@@ -26,7 +26,6 @@
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <signal name="toggled" handler="on_filter_instances_button_toggled" swapped="no"/>
                     <child>
                       <object class="GtkImage">
                         <property name="visible">True</property>
@@ -117,33 +116,12 @@
           </packing>
         </child>
         <child>
-          <object class="GtkRevealer" id="search_revealer">
+          <object class="GtkBox" id="searchbar_placeholder">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="border_width">10</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <object class="GtkSearchEntry" id="instance_filter_entry">
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="primary_icon_name">edit-find-symbolic</property>
-                    <property name="primary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">False</property>
-                    <signal name="focus-out-event" handler="on_instance_filter_entry_focus_out_event" swapped="no"/>
-                    <signal name="search-changed" handler="on_instance_filter_entry_search_changed" swapped="no"/>
-                    <signal name="stop-search" handler="on_instance_filter_entry_stop_search" swapped="no"/>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-              </object>
+              <placeholder/>
             </child>
           </object>
           <packing>
