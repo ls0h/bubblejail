@@ -34,7 +34,6 @@
                         <property name="icon_name">edit-find-symbolic</property>
                       </object>
                     </child>
-                    <accelerator key="f" signal="clicked" modifiers="GDK_CONTROL_MASK"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>

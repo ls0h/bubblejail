@@ -30,8 +30,7 @@ from bubblejail.services import BubblejailService, ServiceOption, OptionBool, Op
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
-from gi.repository import Gio
+from gi.repository import Gtk, Gdk, Gio
 
 GLADE_UI_DIR = f'{BubblejailSettings.SHARE_PATH_STR}/bubblejail/gtk/'
 
@@ -112,6 +111,9 @@ class MainWindowInterface:
     @abstractmethod
     def get_subtitle(self) -> str: ...
 
+    @abstractmethod
+    def get_accel_group(self) -> Optional[Gtk.AccelGroup]: ...
+
 
 class InstanceListItem(GladeBuilder, Gtk.ListBoxRow):
     _glade_file = f'{GLADE_UI_DIR}instance_list_ui.glade'
@@ -138,6 +140,7 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
     _glade_file = f'{GLADE_UI_DIR}instance_list_ui.glade'
     _glade_root_id = 'instance_list_window'
 
+    _gui_filter_instances_button: Gtk.Button
     _gui_add_instance_button: Gtk.Button
     _gui_filter_instances_button: Gtk.ToggleButton
     _gui_search_revealer: Gtk.Revealer
@@ -203,6 +206,11 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
 
     def get_subtitle(self) -> str:
         return 'Existing instances'
+
+    def get_accel_group(self) -> Optional[Gtk.AccelGroup]:
+        group = Gtk.AccelGroup()
+        self._gui_filter_instances_button.add_accelerator("clicked", group, Gdk.KEY_F, Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
+        return group
 
     def on_instance_list_row_activated(self, *args):
         self.switch_app_to_edit_mode()
@@ -469,6 +477,9 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
     def get_subtitle(self) -> str:
         return self._instance_name
 
+    def get_accel_group(self) -> Optional[Gtk.AccelGroup]:
+        return None
+
     def reparent_service_widget(self, service_widget: ServiceWidget):
         if service_widget in self._gui_enabled_services_vbox.get_children():
             self._gui_enabled_services_vbox.remove(service_widget)
@@ -552,6 +563,9 @@ class NewInstanceWindow(MainWindowInterface, GladeWidget):
     def get_subtitle(self) -> str:
         return 'Create new instance'
 
+    def get_accel_group(self) -> Optional[Gtk.AccelGroup]:
+        return None
+
     def _generate_profiles_list(self):
         profiles_names = set()
         for profiles_directory in BubblejailDirectories.iter_profile_directories():
@@ -632,6 +646,8 @@ class BubblejailConfigApp(GladeBuilder):
 
     _main_window_sizes: Dict[str, Tuple[int, int]] = {}
 
+    _accel_group: Optional[Gtk.AccelGroup] = None
+
     def __init__(self):
         super().__init__()
         self.switch_to_list()
@@ -647,6 +663,8 @@ class BubblejailConfigApp(GladeBuilder):
         self._gui_main_window_container.foreach(self._gui_main_window_container.remove)
         self._gui_main_window_headerbar.foreach(self._gui_main_window_headerbar.remove)
         self._gui_main_window_headerbar.set_subtitle('')
+        if self._accel_group:
+            self._gui_main_window.remove_accel_group(self._accel_group)
 
     def _attach_window_interface(self, window_interface: Union[MainWindowInterface, Gtk.Widget]) -> None:
         self._clear_window()
@@ -669,6 +687,9 @@ class BubblejailConfigApp(GladeBuilder):
         self._gui_main_window_headerbar.show_all()
         self._gui_main_window_container.add(window_interface)
         self._gui_main_window_container.show_all()
+        if accel_group := window_interface.get_accel_group():
+            self._accel_group = accel_group
+            self._gui_main_window.add_accel_group(accel_group)
 
     def switch_to_list(self, selection: Optional[str] = None) -> None:
         window_interface = InstanceListWindow(app=self)
