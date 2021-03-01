@@ -187,11 +187,12 @@
           <object class="GtkBox" id="instance_info_group">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="border_width">10</property>
+            <property name="spacing">10</property>
             <child>
               <object class="GtkImage" id="instance_info_icon">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="margin_left">10</property>
                 <property name="icon_name">system-help</property>
                 <property name="use_fallback">True</property>
                 <property name="icon_size">6</property>
@@ -206,8 +207,6 @@
               <object class="GtkLabel" id="instance_info_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="margin_left">10</property>
-                <property name="margin_right">10</property>
                 <property name="label" translatable="yes">&lt;b&gt;text&lt;/b&gt;</property>
                 <property name="use_markup">True</property>
                 <property name="wrap">True</property>

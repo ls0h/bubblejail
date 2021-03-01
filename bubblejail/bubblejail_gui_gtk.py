@@ -191,11 +191,12 @@ class InstanceListWindow(MainWindowInterface, GladeWidget):
             if isinstance(service, CommonSettings):
                 service: CommonSettings
                 executable = service.executable_name.get_gui_value().replace('\t', '\n')
-                text += f'\n<b>Command line:</b> {executable}\n'
+                if executable:
+                    text += f'<b>Command line:</b> {executable}\n\n'
         if len(service_names) > 0:
-            text += '\n<b>Enabled services:</b>\n' + ', '.join(service_names) + '\n'
+            text += '<b>Enabled services:</b>\n' + ', '.join(service_names)
         else:
-            text += '\n<b>Enabled services:</b> None\n'
+            text += '<b>Enabled services:</b> None'
         self._gui_instance_info_label.set_label(text)
         icon_name = get_icon_name_by_instance(bubblejail_instance)
         self._gui_instance_info_icon.set_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
