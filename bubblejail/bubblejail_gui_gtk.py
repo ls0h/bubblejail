@@ -369,10 +369,8 @@ class ServiceWidget(GladeWidget):
                 self._size_group.add_widget(subwidget)
 
     def _set_enabled_or_available_state(self):
-        # TODO: Find icons like stock gtk-delete, gtk-add
-        #  DeprecationWarning: Gtk.Image.set_from_stock is deprecated
-        icons = {True: 'gtk-delete', False: 'gtk-add'}
-        self._gui_add_del_button_image.set_from_stock(icons[self.service.enabled], Gtk.IconSize.BUTTON)
+        icons = {True: 'list-remove-symbolic', False: 'list-add-symbolic'}
+        self._gui_add_del_button_image.set_from_icon_name(icons[self.service.enabled], Gtk.IconSize.BUTTON)
         self._gui_service_params_list.set_sensitive(self.service.enabled)
 
     def save(self):
@@ -385,12 +383,10 @@ class ServiceWidget(GladeWidget):
         self._set_enabled_or_available_state()
 
     def on_rollup_button_clicked(self, button: Gtk.Button) -> None:
-        # TODO: Find icons like stock gtk-go-down, 'gtk-go-up
-        #  DeprecationWarning: Gtk.Image.set_from_stock is deprecated
         self._rolled_up = not self._rolled_up
-        icons = {True: 'gtk-go-down', False: 'gtk-go-up'}
+        icons = {True: 'go-down-symbolic', False: 'go-up-symbolic'}
         self._gui_service_content.set_visible(not self._rolled_up)
-        self._gui_rollup_button_image.set_from_stock(icons[self._rolled_up], Gtk.IconSize.BUTTON)
+        self._gui_rollup_button_image.set_from_icon_name(icons[self._rolled_up], Gtk.IconSize.BUTTON)
 
 
 class InstanceEditWindow(MainWindowInterface, GladeWidget):
