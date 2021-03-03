@@ -401,9 +401,8 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
     _gui_enabled_services_stub: Gtk.Label
     _gui_available_services_vbox: Gtk.VBox
     _gui_filter_toggle_button: Gtk.ToggleButton
-    _gui_search_switcher_stack: Gtk.Stack
+    _gui_searchbar_placeholder: Gtk.Box
     _gui_enabled_available_services_stack: Gtk.Stack
-    _gui_service_filter_entry: Gtk.SearchEntry
 
     def __init__(self, app: BubblejailConfigApp, instance_name: str):
         super().__init__()
@@ -420,13 +419,26 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
                 self._gui_enabled_services_vbox.add(service_widget)
             else:
                 self._gui_available_services_vbox.add(service_widget)
+        self._gui_searchbar_placeholder.add(SearchBar(self._gui_filter_toggle_button, self._filter_services))
         self.on_enabled_services_vbox_add_remove()
+
+    def _filter_services(self, text: str = '') -> None:
+        for container in (self._gui_enabled_services_vbox, self._gui_available_services_vbox):
+            for service_widget in container.get_children():
+                service_widget: ServiceWidget
+                if text in service_widget.searchable_text:
+                    service_widget.show()
+                else:
+                    service_widget.hide()
 
     def get_subtitle(self) -> str:
         return self._instance_name
 
     def get_accel_group(self) -> Optional[Gtk.AccelGroup]:
-        return None
+        group = Gtk.AccelGroup()
+        self._gui_filter_toggle_button.add_accelerator("clicked", group, Gdk.KEY_F, Gdk.ModifierType.CONTROL_MASK,
+                                                          Gtk.AccelFlags.VISIBLE)
+        return group
 
     def reparent_service_widget(self, service_widget: ServiceWidget):
         if service_widget in self._gui_enabled_services_vbox.get_children():
@@ -449,40 +461,6 @@ class InstanceEditWindow(MainWindowInterface, GladeWidget):
         for sw in self._service_widgets:
             sw.save()
         self._bubblejail_instance.save_config(self._instance_config)
-
-    def on_filter_toggle_button_toggled(self, toggle_button: Gtk.ToggleButton):
-        if toggle_button.get_active():
-            self._gui_search_switcher_stack.set_visible_child_name('entry')
-            self._gui_service_filter_entry.grab_focus()
-        else:
-            self._gui_search_switcher_stack.set_visible_child_name('switcher')
-            self._gui_service_filter_entry.set_text('')
-            self._disable_filter()
-
-    def _get_visible_services_list(self) -> Gtk.Box:
-        lists: Dict[str, Gtk.Box] = {
-            'enabled': self._gui_enabled_services_vbox,
-            'available': self._gui_available_services_vbox
-        }
-        visible_services_list_name = self._gui_enabled_available_services_stack.get_visible_child_name()
-        return lists[visible_services_list_name]
-
-    def on_service_filter_entry_search_changed(self, search_entry: Gtk.SearchEntry):
-        text = search_entry.get_text().lower()
-        for service_widget in self._get_visible_services_list().get_children():
-            service_widget: ServiceWidget
-            if text in service_widget.searchable_text:
-                service_widget.show()
-            else:
-                service_widget.hide()
-
-    def on_service_filter_entry_stop_search(self, search_entry: Gtk.SearchEntry):
-        self._gui_filter_toggle_button.set_active(False)
-
-    def _disable_filter(self):
-        for service_widget in self._get_visible_services_list().get_children():
-            service_widget: ServiceWidget
-            service_widget.show()
 
     def on_enabled_services_vbox_add_remove(self, *args, **kwargs):
         if len(self._gui_enabled_services_vbox.get_children()) == 0:
